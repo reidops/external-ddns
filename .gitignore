@@ -1,0 +1,39 @@
+# Local Claude Code context
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Build output
+bin/
+dist/
+Dockerfile.cross
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries and coverage
+*.test
+*.out
+
+# Go workspace
+go.work
+go.work.sum
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Kubeconfigs may hold credentials
+*.kubeconfig
+
+# semantic-release
+node_modules/

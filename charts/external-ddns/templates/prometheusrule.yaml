@@ -1,0 +1,39 @@
+{{- if and .Values.metrics.enabled .Values.metrics.prometheusRule.enabled }}
+{{- $stale := .Values.metrics.prometheusRule.staleAfter }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "external-ddns.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "external-ddns.labels" . | nindent 4 }}
+    {{- with .Values.metrics.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: external-ddns
+      rules:
+        # A dead controller produces no series at all, so staleness needs
+        # both rules: absence, and age of the last corroboration.
+        - alert: PublicAddressControllerDown
+          expr: absent(external_ddns_public_address_observed_timestamp_seconds)
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: external-ddns is not reporting; DNS records are frozen at their last value.
+        - alert: PublicAddressStale
+          expr: time() - external_ddns_public_address_observed_timestamp_seconds > {{ $stale | trimSuffix "m" }} * 60
+          labels:
+            severity: critical
+          annotations:
+            summary: PublicAddress {{ "{{ $labels.name }}" }} has not been corroborated for {{ $stale }}; records may be wrong.
+        - alert: PublicAddressNotCorroborated
+          expr: external_ddns_corroborated == 0
+          for: {{ .Values.metrics.prometheusRule.uncorroboratedFor }}
+          labels:
+            severity: warning
+          annotations:
+            summary: PublicAddress {{ "{{ $labels.name }}" }} observers disagree or fall short; the last good address is held.
+{{- end }}

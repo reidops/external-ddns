@@ -1,0 +1,98 @@
+# Branch validation. Nothing here publishes.
+#
+# No pull_request trigger: a PR head was already pushed and checked.
+# pr-title.yml checks the one thing a PR adds.
+name: CI
+
+on:
+  push:
+    branches-ignore: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Test Go
+    runs-on: ubuntu-latest
+    # Debian, not alpine: actions/checkout needs glibc. The container is the
+    # toolchain, so no setup-go.
+    container: golang:1.26
+    env:
+      # Drift between go.mod, this image and the Dockerfile must fail, not
+      # download a toolchain.
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+
+      # Container user differs from the runner's; git otherwise refuses the
+      # workspace and `make verify` cannot diff.
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Verify generated artifacts
+        run: make verify
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
+
+      - name: Test integration
+        run: make test-integration
+
+      - name: Lint and render the Helm chart
+        run: make helm-lint
+
+  e2e:
+    name: Test E2E
+    needs: go
+    # Not in a container: Kind needs the runner's docker daemon.
+    runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      - name: Test e2e
+        run: make test-e2e
+
+  docker:
+    name: Build Image
+    needs: go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Both platforms, as a release publishes. The Dockerfile cross-compiles,
+      # so no emulation is needed.
+      - name: Build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

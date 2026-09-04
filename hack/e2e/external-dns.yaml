@@ -1,0 +1,61 @@
+# external-dns consuming DNSEndpoints from the e2e namespace into its
+# in-memory provider. Proves the handshake, not a DNS provider.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+  namespace: external-ddns-e2e
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns-e2e
+rules:
+  - apiGroups: [externaldns.k8s.io]
+    resources: [dnsendpoints]
+    verbs: [get, list, watch]
+  - apiGroups: [externaldns.k8s.io]
+    resources: [dnsendpoints/status]
+    verbs: [update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-e2e
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns-e2e
+subjects:
+  - kind: ServiceAccount
+    name: external-dns
+    namespace: external-ddns-e2e
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: external-ddns-e2e
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: external-dns}
+  template:
+    metadata:
+      labels: {app: external-dns}
+    spec:
+      serviceAccountName: external-dns
+      containers:
+        - name: external-dns
+          image: registry.k8s.io/external-dns/external-dns:v0.22.0
+          args:
+            - --source=crd
+            - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
+            - --crd-source-kind=DNSEndpoint
+            - --namespace=external-ddns-e2e
+            - --provider=inmemory
+            - --inmemory-zone=e2e.example
+            - --registry=noop
+            - --policy=sync
+            - --interval=5s
+            - --log-level=debug

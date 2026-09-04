@@ -1,0 +1,323 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: publicaddresses.ddns.reidops.com
+spec:
+  group: ddns.reidops.com
+  names:
+    kind: PublicAddress
+    listKind: PublicAddressList
+    plural: publicaddresses
+    shortNames:
+    - pa
+    singular: publicaddress
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.address
+      name: Address
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Observed")].status
+      name: Observed
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Corroborated")].status
+      name: Corroborated
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Published")].status
+      name: Published
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: 'PublicAddress is one site''s public address: observed, corroborated,
+          published.'
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PublicAddressSpec defines the desired state of PublicAddress.
+            properties:
+              corroboration:
+                default:
+                  requiredRounds: 3
+                description: CorroborationSpec tunes how much agreement a change needs.
+                properties:
+                  requiredRounds:
+                    default: 3
+                    description: Consecutive agreeing rounds before a new address
+                      is trusted.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                type: object
+              interval:
+                default: 60s
+                description: Interval between observation rounds.
+                type: string
+              observers:
+                items:
+                  description: |-
+                    ObserverSpec configures one observer. Exactly one method is set; the
+                    observer's kind follows from it.
+                  properties:
+                    http:
+                      description: HTTPObserver fetches a URL whose body is the caller's
+                        address (outside-in). Use https in production.
+                      properties:
+                        url:
+                          pattern: ^https?://
+                          type: string
+                      required:
+                      - url
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                    static:
+                      description: StaticObserver asserts an address (inside-out).
+                      properties:
+                        address:
+                          format: ipv4
+                          type: string
+                      required:
+                      - address
+                      type: object
+                    stun:
+                      description: STUNObserver asks STUN servers for the reflexive
+                        address (outside-in).
+                      properties:
+                        servers:
+                          description: host:port list; the first answer wins.
+                          items:
+                            type: string
+                          maxItems: 16
+                          minItems: 1
+                          type: array
+                      required:
+                      - servers
+                      type: object
+                    unifi:
+                      description: UnifiObserver reads the WAN address from a UniFi
+                        Network gateway (inside-out).
+                      properties:
+                        apiKeySecretRef:
+                          description: Secret holding the API key.
+                          properties:
+                            key:
+                              default: api-key
+                              type: string
+                            name:
+                              minLength: 1
+                              type: string
+                            namespace:
+                              minLength: 1
+                              type: string
+                          required:
+                          - name
+                          - namespace
+                          type: object
+                        insecureSkipVerify:
+                          type: boolean
+                        site:
+                          default: default
+                          type: string
+                        url:
+                          description: Base URL of the gateway, e.g. https://192.0.2.1.
+                          pattern: ^https?://
+                          type: string
+                      required:
+                      - apiKeySecretRef
+                      - url
+                      type: object
+                  required:
+                  - name
+                  type: object
+                  x-kubernetes-validations:
+                  - message: exactly one of static, unifi, stun, http must be set
+                    rule: '(has(self.static) ? 1 : 0) + (has(self.unifi) ? 1 : 0)
+                      + (has(self.stun) ? 1 : 0) + (has(self.http) ? 1 : 0) == 1'
+                maxItems: 16
+                minItems: 1
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              publish:
+                description: PublishSpec describes the DNSEndpoint the address is
+                  written to.
+                properties:
+                  dnsEndpoint:
+                    description: ObjectReference names a namespaced object.
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                      namespace:
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
+                  records:
+                    description: DNS names to publish as A records.
+                    items:
+                      type: string
+                    maxItems: 64
+                    minItems: 1
+                    type: array
+                    x-kubernetes-list-type: set
+                  ttl:
+                    default: 300
+                    description: Record TTL in seconds.
+                    format: int64
+                    minimum: 1
+                    type: integer
+                required:
+                - dnsEndpoint
+                - records
+                type: object
+            required:
+            - observers
+            - publish
+            type: object
+          status:
+            description: PublicAddressStatus defines the observed state of PublicAddress.
+            properties:
+              address:
+                description: Last corroborated address. Never cleared, only replaced.
+                type: string
+              candidate:
+                description: A different address seen in agreement, not yet for enough
+                  rounds.
+                properties:
+                  address:
+                    type: string
+                  rounds:
+                    format: int32
+                    type: integer
+                required:
+                - address
+                - rounds
+                type: object
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observations:
+                description: Per-observer outcome of the last round.
+                items:
+                  description: Observation is one observer's answer in the last round.
+                  properties:
+                    address:
+                      type: string
+                    error:
+                      type: string
+                    kind:
+                      description: ObserverKind is the direction an observer looks
+                        from.
+                      enum:
+                      - inside-out
+                      - outside-in
+                      type: string
+                    name:
+                      type: string
+                    observedAt:
+                      format: date-time
+                      type: string
+                  required:
+                  - kind
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              observedAt:
+                description: Last round in which Address was corroborated.
+                format: date-time
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

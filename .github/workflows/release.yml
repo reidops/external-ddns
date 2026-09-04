@@ -1,0 +1,46 @@
+# Cut the version. No tests: a commit on main came through a PR whose CI
+# passed on the same tree.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Semantic Release
+    # semantic-release pushes "chore(release): x.y.z [skip ci]" back to main.
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      # RELEASE_TOKEN, not GITHUB_TOKEN: the default token cannot push to a
+      # protected branch or trigger publish.yml from the release it creates.
+      # The three extra plugins are referenced by .releaserc.json and are not
+      # bundled with semantic-release.
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: >-
+          npx --yes
+          -p semantic-release
+          -p @semantic-release/changelog
+          -p @semantic-release/exec
+          -p @semantic-release/git
+          semantic-release

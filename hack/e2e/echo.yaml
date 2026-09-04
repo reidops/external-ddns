@@ -1,0 +1,49 @@
+# Two fixed answers behind one Service; the suite moves the selector.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-a
+  namespace: external-ddns-e2e
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: echo, answer: a}
+  template:
+    metadata:
+      labels: {app: echo, answer: a}
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:1.0
+          args: ["-listen=:5678", "-text=203.0.113.7"]
+          ports: [{containerPort: 5678}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-b
+  namespace: external-ddns-e2e
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: echo, answer: b}
+  template:
+    metadata:
+      labels: {app: echo, answer: b}
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:1.0
+          args: ["-listen=:5678", "-text=203.0.113.8"]
+          ports: [{containerPort: 5678}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo
+  namespace: external-ddns-e2e
+spec:
+  selector: {app: echo, answer: a}
+  ports:
+    - port: 80
+      targetPort: 5678
