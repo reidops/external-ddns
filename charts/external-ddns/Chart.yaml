@@ -2,8 +2,8 @@ apiVersion: v2
 name: external-ddns
 description: Observes and corroborates a site's public address and publishes it through external-dns.
 type: application
-version: 0.0.0
-appVersion: "0.0.0"
+version: 0.1.0
+appVersion: "0.1.0"
 kubeVersion: ">=1.28.0-0"
 home: https://github.com/reidops/external-ddns
 sources:
