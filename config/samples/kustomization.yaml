@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- ddns_v1alpha1_publicaddress.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

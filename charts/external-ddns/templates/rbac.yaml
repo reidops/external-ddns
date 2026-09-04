@@ -1,0 +1,57 @@
+# ClusterRole rules are copied verbatim from the generated role by `make manifests`.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "external-ddns.fullname" . }}
+  labels:
+    {{- include "external-ddns.labels" . | nindent 4 }}
+rules:
+  {{- (fromYaml (.Files.Get "generated/role.yaml")).rules | toYaml | nindent 2 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "external-ddns.fullname" . }}
+  labels:
+    {{- include "external-ddns.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "external-ddns.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "external-ddns.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- if .Values.leaderElect }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "external-ddns.fullname" . }}-leader-election
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "external-ddns.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "external-ddns.fullname" . }}-leader-election
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "external-ddns.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "external-ddns.fullname" . }}-leader-election
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "external-ddns.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

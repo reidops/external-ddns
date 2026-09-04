@@ -1,0 +1,45 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  - events.k8s.io
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ddns.reidops.com
+  resources:
+  - publicaddresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ddns.reidops.com
+  resources:
+  - publicaddresses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - externaldns.k8s.io
+  resources:
+  - dnsendpoints
+  verbs:
+  - create
+  - get
+  - patch
+  - update

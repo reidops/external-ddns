@@ -1,0 +1,10 @@
+{{- if .Values.publicAddress.enabled }}
+apiVersion: ddns.reidops.com/v1alpha1
+kind: PublicAddress
+metadata:
+  name: {{ .Values.publicAddress.name }}
+  labels:
+    {{- include "external-ddns.labels" . | nindent 4 }}
+spec:
+  {{- toYaml .Values.publicAddress.spec | nindent 2 }}
+{{- end }}
