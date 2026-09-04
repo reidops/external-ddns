@@ -58,8 +58,9 @@ spec:
 
 ```
 $ kubectl get publicaddress
-NAME   ADDRESS       OBSERVED   CORROBORATED   PUBLISHED   AGE
-site   203.0.113.7   True       True           True        5m
+NAME   ADDRESS       STATUS        AGE
+site                 Pending 2/3   2m
+site   203.0.113.7   Published     5m
 ```
 
 Observers: `static`, `unifi` (inside-out); `stun`, `http` (outside-in). At

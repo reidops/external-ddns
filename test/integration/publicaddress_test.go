@@ -122,6 +122,7 @@ var _ = Describe("PublicAddress", func() {
 			s, _ := condition(pa, ddnsv1alpha1.ConditionPublished)
 			g.Expect(s).To(Equal(metav1.ConditionTrue))
 			g.Expect(pa.Status.Observations).To(HaveLen(2))
+			g.Expect(pa.Status.Summary).To(Equal("Published"))
 		}).Should(Succeed())
 
 		ep, err := endpoint(name)
@@ -153,6 +154,7 @@ var _ = Describe("PublicAddress", func() {
 			s, r := condition(pa, ddnsv1alpha1.ConditionCorroborated)
 			g.Expect(s).To(Equal(metav1.ConditionFalse))
 			g.Expect(r).To(Equal(ddnsv1alpha1.ReasonPending))
+			g.Expect(pa.Status.Summary).To(MatchRegexp(`^Pending [1-3]/4$`))
 		}).Should(Succeed())
 		Expect(targets(name)).To(ConsistOf(a1, a1))
 
@@ -167,9 +169,11 @@ var _ = Describe("PublicAddress", func() {
 		script.set(name+"-gw", a2)
 		script.set(name+"-echo", a3)
 		Eventually(func(g Gomega) {
-			s, r := condition(get(name), ddnsv1alpha1.ConditionCorroborated)
+			pa := get(name)
+			s, r := condition(pa, ddnsv1alpha1.ConditionCorroborated)
 			g.Expect(s).To(Equal(metav1.ConditionFalse))
 			g.Expect(r).To(Equal(ddnsv1alpha1.ReasonKindsDisagree))
+			g.Expect(pa.Status.Summary).To(Equal(ddnsv1alpha1.ReasonKindsDisagree))
 		}).Should(Succeed())
 		Consistently(func(g Gomega) {
 			pa := get(name)

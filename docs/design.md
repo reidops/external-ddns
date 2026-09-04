@@ -209,13 +209,15 @@ status:
   address: 203.0.113.7
   observedAt: "2026-01-01T00:00:00Z"
   candidate: {address: 203.0.113.8, rounds: 1}
+  summary: Pending 1/3
   observations:
-    - {name: gateway, kind: inside-out, address: 203.0.113.7, observedAt: ...}
-    - {name: stun, kind: outside-in, address: 203.0.113.7, observedAt: ...}
+    - {name: gateway, kind: inside-out, address: 203.0.113.8, observedAt: ...}
+    - {name: stun, kind: outside-in, address: 203.0.113.8, observedAt: ...}
     - {name: echo, kind: outside-in, error: "context deadline exceeded"}
   conditions:
     - {type: Observed,     status: "True"}
-    - {type: Corroborated, status: "True"}
+    - {type: Corroborated, status: "False", reason: Pending,
+       message: "observers agree on 203.0.113.8; 1/3 rounds before publishing"}
     - {type: Published,    status: "True"}
 ```
 
@@ -230,7 +232,13 @@ Conditions:
 | `Corroborated` | `InsufficientKinds`, `KindsDisagree`, `Pending` (candidate below N) |
 | `Published` | `NoAddress`, `WriteFailed` |
 
-Printer columns: `ADDRESS`, `OBSERVED`, `CORROBORATED`, `PUBLISHED`, `AGE`.
+`status.summary` is the one-word state for `kubectl get`: `Published`,
+`Pending n/N` while a candidate counts down, otherwise the reason of the first
+False condition. A countdown must not read as a fault; the failure reasons are
+the ones that should.
+
+Printer columns: `ADDRESS`, `STATUS`, `AGE`; the three condition statuses with
+`-o wide`.
 
 ## 8. Publication
 

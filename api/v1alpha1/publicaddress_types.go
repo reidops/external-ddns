@@ -183,6 +183,10 @@ type PublicAddressStatus struct {
 	// A different address seen in agreement, not yet for enough rounds.
 	// +optional
 	Candidate *Candidate `json:"candidate,omitempty"`
+	// One-word state for humans: Published, Pending n/N, or the reason of
+	// the first condition that is False.
+	// +optional
+	Summary string `json:"summary,omitempty"`
 	// Per-observer outcome of the last round.
 	// +listType=map
 	// +listMapKey=name
@@ -216,9 +220,10 @@ type Observation struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,shortName=pa
 // +kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.status.address`
-// +kubebuilder:printcolumn:name="Observed",type=string,JSONPath=`.status.conditions[?(@.type=="Observed")].status`
-// +kubebuilder:printcolumn:name="Corroborated",type=string,JSONPath=`.status.conditions[?(@.type=="Corroborated")].status`
-// +kubebuilder:printcolumn:name="Published",type=string,JSONPath=`.status.conditions[?(@.type=="Published")].status`
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.summary`
+// +kubebuilder:printcolumn:name="Observed",type=string,JSONPath=`.status.conditions[?(@.type=="Observed")].status`,priority=1
+// +kubebuilder:printcolumn:name="Corroborated",type=string,JSONPath=`.status.conditions[?(@.type=="Corroborated")].status`,priority=1
+// +kubebuilder:printcolumn:name="Published",type=string,JSONPath=`.status.conditions[?(@.type=="Published")].status`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // PublicAddress is one site's public address: observed, corroborated, published.
