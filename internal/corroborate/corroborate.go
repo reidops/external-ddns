@@ -188,7 +188,7 @@ func Apply(st *ddnsv1alpha1.PublicAddressStatus, r Result, p Params) bool {
 	st.Candidate.Rounds++
 	if st.Candidate.Rounds < p.RequiredRounds {
 		set(ddnsv1alpha1.ConditionCorroborated, metav1.ConditionFalse, ddnsv1alpha1.ReasonPending,
-			fmt.Sprintf("%s agreed for %d/%d rounds", addr, st.Candidate.Rounds, p.RequiredRounds))
+			fmt.Sprintf("observers agree on %s; %d/%d rounds before publishing", addr, st.Candidate.Rounds, p.RequiredRounds))
 		return false
 	}
 	st.Address = addr

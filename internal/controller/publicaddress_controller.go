@@ -102,6 +102,7 @@ func (r *PublicAddressReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	r.publish(ctx, pa, now)
+	pa.Status.Summary = summarize(&pa.Status, pa.Spec.Corroboration.RequiredRounds)
 	r.record(pa, result, inputs)
 
 	if err := r.Status().Update(ctx, pa); err != nil {
@@ -156,7 +157,7 @@ func (r *PublicAddressReconciler) publish(ctx context.Context, pa *ddnsv1alpha1.
 	cond := metav1.Condition{Type: ddnsv1alpha1.ConditionPublished, ObservedGeneration: pa.Generation, LastTransitionTime: now}
 	switch err := r.write(ctx, pa); {
 	case pa.Status.Address == "":
-		cond.Status, cond.Reason, cond.Message = metav1.ConditionFalse, ddnsv1alpha1.ReasonNoAddress, "no corroborated address yet"
+		cond.Status, cond.Reason, cond.Message = metav1.ConditionFalse, ddnsv1alpha1.ReasonNoAddress, "waiting for a corroborated address"
 	case err != nil:
 		cond.Status, cond.Reason, cond.Message = metav1.ConditionFalse, ddnsv1alpha1.ReasonWriteFailed, err.Error()
 		r.event(pa, corev1.EventTypeWarning, "PublishFailed", "Publish", "%v", err)
@@ -222,6 +223,22 @@ func interval(pa *ddnsv1alpha1.PublicAddress) time.Duration {
 		return d
 	}
 	return defaultInterval
+}
+
+// summarize is the STATUS column: Published, "Pending n/N" while a candidate
+// counts down, else the reason of the first False condition.
+func summarize(st *ddnsv1alpha1.PublicAddressStatus, requiredRounds int32) string {
+	for _, typ := range []string{ddnsv1alpha1.ConditionObserved, ddnsv1alpha1.ConditionCorroborated, ddnsv1alpha1.ConditionPublished} {
+		c := meta.FindStatusCondition(st.Conditions, typ)
+		if c == nil || c.Status == metav1.ConditionTrue {
+			continue
+		}
+		if c.Reason == ddnsv1alpha1.ReasonPending && st.Candidate != nil {
+			return fmt.Sprintf("%s %d/%d", c.Reason, st.Candidate.Rounds, max(requiredRounds, 1))
+		}
+		return c.Reason
+	}
+	return ddnsv1alpha1.ReasonPublished
 }
 
 func orNone(s string) string {

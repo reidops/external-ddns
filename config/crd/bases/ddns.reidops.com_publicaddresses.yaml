@@ -20,14 +20,20 @@ spec:
     - jsonPath: .status.address
       name: Address
       type: string
+    - jsonPath: .status.summary
+      name: Status
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Observed")].status
       name: Observed
+      priority: 1
       type: string
     - jsonPath: .status.conditions[?(@.type=="Corroborated")].status
       name: Corroborated
+      priority: 1
       type: string
     - jsonPath: .status.conditions[?(@.type=="Published")].status
       name: Published
+      priority: 1
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -312,6 +318,11 @@ spec:
               observedAt:
                 description: Last round in which Address was corroborated.
                 format: date-time
+                type: string
+              summary:
+                description: |-
+                  One-word state for humans: Published, Pending n/N, or the reason of
+                  the first condition that is False.
                 type: string
             type: object
         required:
