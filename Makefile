@@ -62,10 +62,12 @@ verify: manifests generate fmt ## Regenerate everything and fail if the tree is 
 	fi
 
 .PHONY: ci
-ci: verify lint test test-integration helm-lint test-e2e ## Everything a pull request must pass.
+ci: lint test test-integration helm-lint e2e ## Everything a pull request must pass; what CI runs, through reidops/ci-templates.
 
+# verify first: generated CRDs, RBAC and deepcopy must match the tree before
+# the linter's verdict means anything.
 .PHONY: lint
-lint: golangci-lint ## Run golangci-lint.
+lint: verify golangci-lint ## Verify generated artifacts, then run golangci-lint.
 	"$(GOLANGCI_LINT)" run
 
 .PHONY: lint-fix
@@ -76,8 +78,17 @@ lint-fix: golangci-lint ## Run golangci-lint with fixes.
 
 KIND_CLUSTER ?= external-ddns-e2e
 E2E_NAMESPACE := external-ddns-system
-# Never "latest": the kubelet would pull instead of using the loaded image.
+# The image the e2e deploys. CI names the one it built through
+# IMAGE_EXTERNAL_DDNS (reidops/ci-templates CONTRACT.md §1); unset, it is
+# built here. Never "latest": the kubelet would pull instead of using the
+# loaded image.
+IMAGE_EXTERNAL_DDNS ?=
+ifeq ($(IMAGE_EXTERNAL_DDNS),)
 E2E_IMG ?= example.com/external-ddns:e2e
+E2E_BUILD := 1
+else
+E2E_IMG := $(IMAGE_EXTERNAL_DDNS)
+endif
 E2E_KUBECONFIG ?= $(LOCALBIN)/kubeconfig-e2e
 
 .PHONY: setup-test-e2e
@@ -89,8 +100,8 @@ setup-test-e2e: ## Create the Kind cluster if it does not exist.
 	esac
 
 .PHONY: e2e-images
-e2e-images: ## Build the manager image and load it into Kind.
-	$(MAKE) docker-build IMG=$(E2E_IMG)
+e2e-images: ## Build the manager image (unless CI handed one over) and load it into Kind.
+	$(if $(E2E_BUILD),$(MAKE) docker-build IMG=$(E2E_IMG),@echo "Using $(E2E_IMG)")
 	$(KIND) load docker-image $(E2E_IMG) --name $(KIND_CLUSTER)
 
 .PHONY: dev-up
@@ -109,13 +120,15 @@ dev-down: cleanup-test-e2e ## Tear down the dev-up cluster.
 
 # The suite is handed Kind's kubeconfig explicitly: controller-runtime prefers
 # in-cluster credentials, and a CI runner that is itself a pod has those.
-.PHONY: test-e2e
-test-e2e: dev-up fmt vet ## Provision Kind, deploy, run the e2e suite, tear down.
+.PHONY: e2e test-e2e
+e2e: dev-up fmt vet ## Provision Kind, deploy, run the e2e suite, tear down.
 	@status=0; \
 	$(KIND) get kubeconfig --name $(KIND_CLUSTER) > $(E2E_KUBECONFIG); \
 	KUBECONFIG=$(E2E_KUBECONFIG) go test -tags=e2e ./test/e2e/ -v -ginkgo.v || status=$$?; \
 	$(MAKE) cleanup-test-e2e; \
 	exit $$status
+
+test-e2e: e2e
 
 .PHONY: cleanup-test-e2e
 cleanup-test-e2e: ## Delete the Kind cluster.

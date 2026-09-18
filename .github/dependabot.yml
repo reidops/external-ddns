@@ -1,0 +1,18 @@
+# Opens one PR per scan for whatever action pins are behind. Third-party
+# actions wait out Dependabot's default cooldown; a reidops/ci-templates
+# release is ours and lands the day it is cut.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    groups:
+      actions:
+        patterns: ["*"]
+    cooldown:
+      default-days: 3
+      exclude:
+        - "reidops/ci-templates/*"
+    commit-message:
+      prefix: ci

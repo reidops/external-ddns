@@ -1,8 +1,8 @@
-# The PR title becomes the squash-merge subject, which semantic-release parses.
-name: PR Title
+# Squash merges make the PR title the commit semantic-release reads.
+name: PR title
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, synchronize, reopened]
 
 permissions:
@@ -10,31 +10,5 @@ permissions:
   statuses: write
 
 jobs:
-  validate:
-    name: Validate PR Title
-    runs-on: ubuntu-latest
-    steps:
-      - uses: amannn/action-semantic-pull-request@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          types: |
-            feat
-            fix
-            docs
-            style
-            refactor
-            perf
-            test
-            build
-            ci
-            chore
-            revert
-          requireScope: false
-          wip: true
-          subjectPattern: ^(?![A-Z]).+$
-          subjectPatternError: |
-            The subject "{subject}" found in the PR title doesn't match the expected format.
-            - Don't start with an uppercase letter
-            - Use imperative mood (e.g., "add feature" not "added feature")
-          validateSingleCommit: false
+  pr-title:
+    uses: reidops/ci-templates/.github/workflows/pr-title.yml@v0.5.0

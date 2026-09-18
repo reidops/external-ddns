@@ -1,46 +1,52 @@
-# Cut the version. No tests: a commit on main came through a PR whose CI
-# passed on the same tree.
+# main: semantic-release cuts the tag and the GitHub release from the
+# squash-merged PR titles. The published release runs the tag graph: lint,
+# test, test-integration, helm-lint, a multi-arch build of <version>-rc
+# (VERSION stamped into the binary), e2e against it, then the tested digest
+# promoted to <version> and latest and the chart pushed. workflow_dispatch
+# rehearses a version from any branch, latest withheld.
 name: Release
 
 on:
   push:
     branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
-
-permissions:
-  contents: read
+    inputs:
+      version:
+        description: Version to rehearse (no v). Builds, tests and promotes it; latest is withheld.
+        required: true
+        type: string
 
 jobs:
-  release:
-    name: Semantic Release
-    # semantic-release pushes "chore(release): x.y.z [skip ci]" back to main.
-    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
-    runs-on: ubuntu-latest
+  semantic-release:
+    if: github.event_name == 'push'
     permissions:
       contents: write
       issues: write
       pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
+    uses: reidops/ci-templates/.github/workflows/semantic-release.yml@v0.5.0
+    with:
+      # Referenced by .releaserc.json; not shipped with semantic-release and
+      # not listed in a package.json, which this Go repo does not carry.
+      extra-plugins: >-
+        @semantic-release/changelog
+        @semantic-release/exec
+        @semantic-release/git
+    secrets:
+      github-token: ${{ secrets.RELEASE_TOKEN }}
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      # RELEASE_TOKEN, not GITHUB_TOKEN: the default token cannot push to a
-      # protected branch or trigger publish.yml from the release it creates.
-      # The three extra plugins are referenced by .releaserc.json and are not
-      # bundled with semantic-release.
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        run: >-
-          npx --yes
-          -p semantic-release
-          -p @semantic-release/changelog
-          -p @semantic-release/exec
-          -p @semantic-release/git
-          semantic-release
+  release:
+    if: github.event_name != 'push'
+    permissions:
+      contents: read
+      packages: write
+    uses: reidops/ci-templates/.github/workflows/release.yml@v0.5.0
+    with:
+      version: ${{ github.event.release.tag_name || inputs.version }}
+      tag-latest: ${{ github.event_name == 'release' }}
+      images: |
+        {"name": "external-ddns"}
+      helm-chart: charts/external-ddns
+      test-integration: true
+      c-toolchain: true

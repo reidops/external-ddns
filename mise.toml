@@ -1,0 +1,12 @@
+# Toolchains, installed by CI before every make target (reidops/ci-templates
+# CONTRACT.md §3) and by `mise install` on a laptop. Go matches go.mod and the
+# Dockerfile; GOTOOLCHAIN=local keeps a drift between them an error rather
+# than a silent download. kind and kubectl are for the e2e; controller-gen,
+# golangci-lint, envtest and helm are fetched by the Makefile into bin/.
+[tools]
+go = "1.26"
+kind = "latest"
+kubectl = "latest"
+
+[env]
+GOTOOLCHAIN = "local"

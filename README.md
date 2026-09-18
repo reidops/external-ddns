@@ -70,9 +70,10 @@ least one of each kind must agree before anything is published.
 
 ```sh
 make help
+make lint              # generated artifacts verified, then golangci-lint
 make test              # unit
 make test-integration  # envtest
-make test-e2e          # kind: chart, external-dns (in-memory), fixtures
+make e2e               # kind: chart, external-dns (in-memory), fixtures
 make dev-up            # the e2e cluster, left running
 make ci                # everything a pull request must pass
 ```
@@ -83,6 +84,12 @@ Release candidates from a working tree:
 make docker-buildx VERSION=0.1.0-rc.1
 make helm-push VERSION=0.1.0-rc.1
 ```
+
+CI is `reidops/ci-templates` (its `CONTRACT.md` is the spec): three thin
+callers in `.github/workflows/`, `mise.toml` for the toolchain, and the `make`
+targets above. A pull request runs them all against the image CI built; a
+release re-runs them on the tag, then promotes the digest e2e tested and
+pushes the chart.
 
 Pull requests are squash-merged; the title must be a conventional commit, and
 semantic-release cuts the version from it.
