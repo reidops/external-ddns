@@ -65,6 +65,8 @@ site   203.0.113.7   Published     5m
 
 Observers: `static`, `unifi` (inside-out); `stun`, `http` (outside-in). At
 least one of each kind must agree before anything is published.
+`insecureSkipVerify` is in the example because a UniFi controller serves its
+own certificate; drop it where the gateway presents one the cluster trusts.
 
 ## Develop
 
