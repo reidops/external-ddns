@@ -13,8 +13,10 @@ on:
         type: string
         default: ''
 
-permissions:
-  contents: read
+# No permissions block: a called workflow that declares one caps the token at
+# it, and this graph is called with two different needs. ci.yml grants reads
+# of the contents; publish.yml grants a read of the packages as well, which is
+# how the e2e job pulls the candidate.
 
 jobs:
   go:
