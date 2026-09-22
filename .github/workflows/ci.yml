@@ -1,7 +1,8 @@
 # Branch validation. Nothing here publishes.
 #
-# No pull_request trigger: a PR head was already pushed and checked.
-# pr-title.yml checks the one thing a PR adds.
+# A push covers our own work: the head was checked before the pull request
+# existed. A fork's push never reaches this repository, so its pull request is
+# the only event carrying that code, and the trigger exists for that case.
 name: CI
 
 on:
@@ -12,10 +13,19 @@ on:
       - 'docs/**'
       - 'LICENSE'
       - '.gitignore'
+  # Anchors are not supported here, so the ignore list is repeated.
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref_name }}
+  # A pull request and the push of its head are separate runs; only a run of
+  # the same kind supersedes its predecessor.
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -24,6 +34,10 @@ permissions:
 jobs:
   go:
     name: Test Go
+    # A branch in this repository was checked on its push; running the graph
+    # again for the pull request would only duplicate it. e2e and docker need
+    # this job, so skipping it skips them too.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     # Debian, not alpine: actions/checkout needs glibc. The container is the
     # toolchain, so no setup-go.
