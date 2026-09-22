@@ -86,6 +86,11 @@ make docker-buildx VERSION=0.1.0-rc.1
 make helm-push VERSION=0.1.0-rc.1
 ```
 
+A release runs the same graph a branch runs. The image is built once as
+`<version>-rc`, the suite is deployed against that candidate, and the release
+tags are a retag of its digest, so what ships is the image that passed rather
+than a second build of the same source.
+
 Pull requests are squash-merged; the title must be a conventional commit, and
 semantic-release cuts the version from it.
 

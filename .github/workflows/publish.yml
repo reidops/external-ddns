@@ -1,13 +1,25 @@
-# Build and push artefacts for a release that already exists.
+# Build, test and push the artefacts for a release that already exists.
+#
+# The image is built once, as <version>-rc, and the suite runs against that
+# candidate. Promotion retags the candidate's digest, so what ships is the
+# artefact that passed rather than a second build of the same source.
 name: Publish
 
 on:
   release:
     types: [published]
+  # The graph runs on a release and nowhere else, so this is how it is
+  # exercised without one. Give a version no release has used, such as
+  # 0.2.0-rc.1: it is built, tested and promoted, and latest is withheld.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to rehearse, without the v.
+        required: true
+        type: string
 
 permissions:
   contents: read
-  packages: write
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
@@ -20,17 +32,26 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      candidate: ${{ steps.version.outputs.candidate }}
     steps:
       - name: Strip v prefix from tag
         id: version
-        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ github.event.release.tag_name || inputs.version }}
+        run: |
+          version="${TAG#v}"
+          {
+            echo "version=$version"
+            echo "candidate=ghcr.io/$GITHUB_REPOSITORY:$version-rc"
+          } >> "$GITHUB_OUTPUT"
 
-  docker:
-    name: Publish Image
+  candidate:
+    name: Build Candidate
     needs: version
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -42,23 +63,70 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push the candidate
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: VERSION=${{ needs.version.outputs.version }}
-          tags: |
-            ${{ env.IMAGE }}:${{ needs.version.outputs.version }}
-            ${{ env.IMAGE }}:latest
+          tags: ${{ needs.version.outputs.candidate }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # The same graph a branch runs, deploying the candidate rather than an image
+  # built here. A release that fails it publishes nothing.
+  test:
+    name: Test
+    needs: [version, candidate]
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/test.yml
+    with:
+      image: ${{ needs.version.outputs.candidate }}
+
+  promote:
+    name: Promote Candidate
+    needs: [version, test]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      CANDIDATE: ${{ needs.version.outputs.candidate }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # A registry-side manifest copy: one digest gains the release's tags,
+      # both platforms with it, and nothing is rebuilt. Only a real release
+      # moves latest; a rehearsal leaves it where it is.
+      - name: Retag the candidate as the release
+        env:
+          TAG_LATEST: ${{ github.event_name == 'release' }}
+        run: |
+          tags=(--tag "$IMAGE:$VERSION")
+          if [ "$TAG_LATEST" = "true" ]; then
+            tags+=(--tag "$IMAGE:latest")
+          fi
+          docker buildx imagetools create "${tags[@]}" "$CANDIDATE"
+
+      - name: Record what shipped
+        run: docker buildx imagetools inspect "$IMAGE:$VERSION"
+
   helm:
     name: Publish Chart
-    needs: version
+    needs: [version, promote]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
@@ -69,6 +137,7 @@ jobs:
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
 
+      # The chart's appVersion is the image tag promote just created.
       - name: Package and push
         run: |
           helm package charts/external-ddns --version "$VERSION" --app-version "$VERSION" -d dist

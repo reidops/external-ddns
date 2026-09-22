@@ -78,6 +78,9 @@ KIND_CLUSTER ?= external-ddns-e2e
 E2E_NAMESPACE := external-ddns-system
 # Never "latest": the kubelet would pull instead of using the loaded image.
 E2E_IMG ?= example.com/external-ddns:e2e
+# A release points the suite at the candidate it is about to publish, so what
+# ships is the image the suite passed and not a rebuild of the same source.
+E2E_IMG_PULL ?= false
 E2E_KUBECONFIG ?= $(LOCALBIN)/kubeconfig-e2e
 
 .PHONY: setup-test-e2e
@@ -89,8 +92,12 @@ setup-test-e2e: ## Create the Kind cluster if it does not exist.
 	esac
 
 .PHONY: e2e-images
-e2e-images: ## Build the manager image and load it into Kind.
-	$(MAKE) docker-build IMG=$(E2E_IMG)
+e2e-images: ## Put E2E_IMG in Kind: built from this tree, or pulled when E2E_IMG_PULL=true.
+	@if [ "$(E2E_IMG_PULL)" = "true" ]; then \
+		docker pull "$(E2E_IMG)"; \
+	else \
+		$(MAKE) docker-build IMG=$(E2E_IMG); \
+	fi
 	$(KIND) load docker-image $(E2E_IMG) --name $(KIND_CLUSTER)
 
 .PHONY: dev-up

@@ -1,0 +1,88 @@
+# The test graph. ci.yml runs it on a branch, publish.yml runs it on a release
+# against the candidate it is about to ship, so a release cannot pass a check
+# a branch never ran, and cannot ship an image the suite never saw.
+name: Test
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: >-
+          A candidate image, already in the registry, for the e2e suite to
+          deploy. Empty builds the image from the checkout, as a branch does.
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Test Go
+    runs-on: ubuntu-latest
+    # Debian, not alpine: actions/checkout needs glibc. The container is the
+    # toolchain, so no setup-go.
+    container: golang:1.26
+    env:
+      # Drift between go.mod, this image and the Dockerfile must fail, not
+      # download a toolchain.
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+
+      # Container user differs from the runner's; git otherwise refuses the
+      # workspace and `make verify` cannot diff.
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Verify generated artifacts
+        run: make verify
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
+
+      - name: Test integration
+        run: make test-integration
+
+      - name: Lint and render the Helm chart
+        run: make helm-lint
+
+  e2e:
+    name: Test E2E
+    needs: go
+    # Not in a container: Kind needs the runner's docker daemon.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      # Only a candidate has to be fetched; a branch builds its own image.
+      - uses: docker/login-action@v3
+        if: inputs.image != ''
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test e2e
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          if [ -n "$IMAGE" ]; then
+            make test-e2e E2E_IMG="$IMAGE" E2E_IMG_PULL=true
+          else
+            make test-e2e
+          fi

@@ -3,6 +3,8 @@
 # A push covers our own work: the head was checked before the pull request
 # existed. A fork's push never reaches this repository, so its pull request is
 # the only event carrying that code, and the trigger exists for that case.
+#
+# The graph itself is test.yml, which a release runs too.
 name: CI
 
 on:
@@ -32,67 +34,19 @@ permissions:
   contents: read
 
 jobs:
-  go:
-    name: Test Go
+  test:
+    name: Test
     # A branch in this repository was checked on its push; running the graph
-    # again for the pull request would only duplicate it. e2e and docker need
-    # this job, so skipping it skips them too.
+    # again for the pull request would only duplicate it. docker needs this
+    # job, so skipping it skips that too.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
-    # Debian, not alpine: actions/checkout needs glibc. The container is the
-    # toolchain, so no setup-go.
-    container: golang:1.26
-    env:
-      # Drift between go.mod, this image and the Dockerfile must fail, not
-      # download a toolchain.
-      GOTOOLCHAIN: local
-    steps:
-      - uses: actions/checkout@v4
-
-      # Container user differs from the runner's; git otherwise refuses the
-      # workspace and `make verify` cannot diff.
-      - name: Mark workspace safe for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-      - name: Verify generated artifacts
-        run: make verify
-
-      - name: Lint
-        run: make lint
-
-      - name: Test
-        run: make test
-
-      - name: Test integration
-        run: make test-integration
-
-      - name: Lint and render the Helm chart
-        run: make helm-lint
-
-  e2e:
-    name: Test E2E
-    needs: go
-    # Not in a container: Kind needs the runner's docker daemon.
-    runs-on: ubuntu-latest
-    env:
-      GOTOOLCHAIN: local
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - uses: helm/kind-action@v1
-        with:
-          install_only: true
-
-      - name: Test e2e
-        run: make test-e2e
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
 
   docker:
     name: Build Image
-    needs: go
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
