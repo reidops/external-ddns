@@ -1,0 +1,30 @@
+# Weekly, prefixed `build` so the pull-request title stays a conventional
+# commit and semantic-release cuts no version from it.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+    groups:
+      # Kubernetes libraries move together; one pull request per bump.
+      kubernetes:
+        patterns:
+          - k8s.io/*
+          - sigs.k8s.io/*
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
