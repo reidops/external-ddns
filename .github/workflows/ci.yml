@@ -15,6 +15,10 @@ on:
       - 'docs/**'
       - 'LICENSE'
       - '.gitignore'
+      # Read by GitHub and by semantic-release, never by the graph.
+      - '.github/dependabot.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.releaserc.json'
   # Anchors are not supported here, so the ignore list is repeated.
   pull_request:
     paths-ignore:
@@ -22,6 +26,10 @@ on:
       - 'docs/**'
       - 'LICENSE'
       - '.gitignore'
+      # Read by GitHub and by semantic-release, never by the graph.
+      - '.github/dependabot.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.releaserc.json'
   workflow_dispatch:
 
 concurrency:
