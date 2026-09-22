@@ -30,6 +30,10 @@ A pull request from a fork runs the full CI graph. A branch pushed to this
 repository is checked on the push instead, so its pull request shows the title
 check alone.
 
+The graph lives in `.github/workflows/test.yml` and a release runs it too,
+against the image it is about to publish. Anything added to it therefore gates
+releases as well as branches.
+
 ## Licence and copyright
 
 Contributions are licensed under Apache-2.0, as
