@@ -1,24 +1,33 @@
-# Weekly, prefixed `build` so the pull-request title stays a conventional
-# commit and semantic-release cuts no version from it.
+# One pull request per scan per ecosystem, never one per dependency. Every
+# bump pushes a branch, and a branch runs the whole graph with e2e in it, so
+# nine separate bumps spend hours of runner time proving the same tree nine
+# times.
+#
+# Weekly throughout: none of it is urgent between releases. The three-day
+# cooldown keeps a package's own churn from arriving one release at a time.
 version: 2
 updates:
-  - package-ecosystem: gomod
-    directory: /
-    schedule:
-      interval: weekly
-    commit-message:
-      prefix: build
-    groups:
-      # Kubernetes libraries move together; one pull request per bump.
-      kubernetes:
-        patterns:
-          - k8s.io/*
-          - sigs.k8s.io/*
-
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go:
+        patterns: ["*"]
+    cooldown:
+      default-days: 3
     commit-message:
       prefix: build
 
@@ -26,5 +35,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      docker:
+        patterns: ["*"]
+    cooldown:
+      default-days: 3
     commit-message:
       prefix: build
