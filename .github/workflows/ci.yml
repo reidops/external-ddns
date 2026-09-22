@@ -102,7 +102,7 @@ jobs:
       # Both platforms, as a release publishes. The Dockerfile cross-compiles,
       # so no emulation is needed.
       - name: Build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
