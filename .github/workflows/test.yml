@@ -28,7 +28,7 @@ jobs:
       # download a toolchain.
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Container user differs from the runner's; git otherwise refuses the
       # workspace and `make verify` cannot diff.
@@ -59,9 +59,9 @@ jobs:
     env:
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
@@ -70,7 +70,7 @@ jobs:
           install_only: true
 
       # Only a candidate has to be fetched; a branch builds its own image.
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         if: inputs.image != ''
         with:
           registry: ghcr.io
