@@ -1,3 +1,5 @@
+## [0.1.2](https://github.com/reidops/external-ddns/compare/v0.1.1...v0.1.2) (2026-09-23)
+
 ## [0.1.1](https://github.com/reidops/external-ddns/compare/v0.1.0...v0.1.1) (2026-09-05)
 
 
