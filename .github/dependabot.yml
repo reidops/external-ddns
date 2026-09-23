@@ -5,6 +5,11 @@
 #
 # Weekly throughout: none of it is urgent between releases. The three-day
 # cooldown keeps a package's own churn from arriving one release at a time.
+#
+# Each ecosystem declares the group twice. A group applies to version updates
+# unless it says otherwise, so a security update is opened one dependency at a
+# time until a second group claims it. Security updates ignore the schedule and
+# the cooldown, as they should.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -13,6 +18,9 @@ updates:
       interval: weekly
     groups:
       actions:
+        patterns: ["*"]
+      actions-security:
+        applies-to: security-updates
         patterns: ["*"]
     cooldown:
       default-days: 3
@@ -26,6 +34,9 @@ updates:
     groups:
       go:
         patterns: ["*"]
+      go-security:
+        applies-to: security-updates
+        patterns: ["*"]
     cooldown:
       default-days: 3
     commit-message:
@@ -37,6 +48,9 @@ updates:
       interval: weekly
     groups:
       docker:
+        patterns: ["*"]
+      docker-security:
+        applies-to: security-updates
         patterns: ["*"]
     cooldown:
       default-days: 3
