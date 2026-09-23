@@ -30,13 +30,22 @@ jobs:
         with:
           node-version: lts/*
 
-      # RELEASE_TOKEN, not GITHUB_TOKEN: the default token cannot push to a
-      # protected branch or trigger publish.yml from the release it creates.
+      # Not GITHUB_TOKEN: it cannot push to a protected branch, and a release
+      # it creates triggers no workflow, so publish.yml would never run. An
+      # installation token can do both. It lives for this run, belongs to no
+      # person, and the organisation ruleset names the app as a bypass actor.
+      - name: Mint an installation token
+        id: token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       # The three extra plugins are referenced by .releaserc.json and are not
       # bundled with semantic-release.
       - name: Release
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
         run: >-
           npx --yes
           -p semantic-release
