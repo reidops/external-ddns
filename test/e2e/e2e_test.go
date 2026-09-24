@@ -31,6 +31,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ddnsv1alpha1 "github.com/reidops/external-ddns/api/v1alpha1"
@@ -91,10 +92,18 @@ func answer(which string) {
 	ExpectWithOffset(1, k8sClient.Update(ctx, svc)).To(Succeed())
 }
 
+// setStatic points the static observer at addr. The manager writes status on
+// its own schedule, so a read, a change and a write races it and loses with a
+// conflict; re-read and try again rather than fail the spec.
 func setStatic(addr string) {
-	pa := getPA()
-	pa.Spec.Observers[0].Static.Address = addr
-	ExpectWithOffset(1, k8sClient.Update(ctx, pa)).To(Succeed())
+	ExpectWithOffset(1, retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pa := &ddnsv1alpha1.PublicAddress{}
+		if err := k8sClient.Get(ctx, client.ObjectKey{Name: paName}, pa); err != nil {
+			return err
+		}
+		pa.Spec.Observers[0].Static.Address = addr
+		return k8sClient.Update(ctx, pa)
+	})).To(Succeed())
 }
 
 var metricRe = regexp.MustCompile(`(?m)^external_ddns_(\w+)\{[^}]*name="site"[^}]*\} (\S+)$`)
