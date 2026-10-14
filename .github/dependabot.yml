@@ -42,6 +42,8 @@ updates:
     commit-message:
       prefix: build
 
+  # A golang bump fails `make check-go-version` until go.mod, mise.toml and
+  # test.yml's container move with it, in the same pull request.
   - package-ecosystem: docker
     directory: /
     schedule:

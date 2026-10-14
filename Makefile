@@ -49,8 +49,12 @@ test: manifests generate fmt vet ## Run unit tests.
 test-integration: manifests generate fmt vet setup-envtest ## Run the envtest suite against a real API server.
 	KUBEBUILDER_ASSETS="$(shell "$(ENVTEST)" use $(ENVTEST_K8S_VERSION) --bin-dir "$(LOCALBIN)" -p path)" go test -tags=integration ./test/integration/ -v -ginkgo.v
 
+.PHONY: check-go-version
+check-go-version: ## Fail unless go.mod, mise.toml, CI and the Dockerfile name one Go version.
+	hack/check-go-version.sh
+
 .PHONY: verify
-verify: manifests generate fmt ## Regenerate everything and fail if the tree is dirty.
+verify: check-go-version manifests generate fmt ## Check the Go versions, regenerate everything and fail if the tree is dirty.
 	@status=$$(git status --porcelain) || { \
 		echo "verify: git status failed; in a container, mark the workspace safe first."; \
 		exit 1; \
