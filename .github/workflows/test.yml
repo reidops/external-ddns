@@ -26,8 +26,9 @@ jobs:
     # toolchain, so no setup-go.
     container: golang:1.26
     env:
-      # Drift between go.mod, this image and the Dockerfile must fail, not
-      # download a toolchain.
+      # A toolchain older than go.mod fails instead of downloading another.
+      # `make verify` keeps go.mod, mise.toml, this image and the Dockerfile
+      # on one Go version.
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v7
