@@ -70,7 +70,8 @@ own certificate; drop it where the gateway presents one the cluster trusts.
 
 ## Develop
 
-The toolchains are pinned in `mise.toml`; Docker comes from the host.
+The toolchains, kubebuilder among them, are pinned in `mise.toml`; Docker
+comes from the host.
 
 ```sh
 mise install

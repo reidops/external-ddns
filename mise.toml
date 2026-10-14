@@ -1,12 +1,15 @@
 # Toolchains, installed by `mise install`. Go matches go.mod and the CI
-# container; GOTOOLCHAIN=local keeps a drift between them an error rather than
-# a silent download. kind and kubectl are for the e2e and dev-up; Docker comes
-# from the host. controller-gen, golangci-lint, envtest and helm are fetched by
-# the Makefile into bin/.
+# container; GOTOOLCHAIN=local makes a toolchain older than go.mod an error
+# rather than a silent download. kind and kubectl are for the e2e and dev-up.
+# kubebuilder, for scaffolding new APIs and webhooks, is at the version PROJECT
+# records as cliVersion and is bumped with it. Docker comes from the host.
+# controller-gen, golangci-lint, envtest and helm are fetched by the Makefile
+# into bin/.
 [tools]
 go = "1.26"
 kind = "latest"
 kubectl = "latest"
+"aqua:kubernetes-sigs/kubebuilder" = "4.15.0"
 
 [env]
 GOTOOLCHAIN = "local"
