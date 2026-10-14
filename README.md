@@ -70,7 +70,10 @@ own certificate; drop it where the gateway presents one the cluster trusts.
 
 ## Develop
 
+The toolchains are pinned in `mise.toml`; Docker comes from the host.
+
 ```sh
+mise install
 make help
 make test              # unit
 make test-integration  # envtest
